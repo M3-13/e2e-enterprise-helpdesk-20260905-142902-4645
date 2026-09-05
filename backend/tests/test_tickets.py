@@ -1,6 +1,5 @@
 """Tests for ticket creation, the searchable list and the SLA calculation."""
 
-import os
 from datetime import timedelta
 
 import pytest
@@ -9,15 +8,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.config import settings
 from app.core.security import create_access_token
 from app.database import Base, get_db
 from app.main import app
 from app.models import Priority, Role, Status, Ticket, User, utcnow
 from app.services.sla import compute_due_at
-
-os.environ["JWT_SECRET"] = "test-secret-key-for-ticket-tests"
-object.__setattr__(settings, "jwt_secret", "test-secret-key-for-ticket-tests")
 
 
 @pytest.fixture()

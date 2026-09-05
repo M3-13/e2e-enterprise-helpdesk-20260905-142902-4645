@@ -6,19 +6,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.api.routers.auth import auth_limiter
-from app.config import settings
 from app.core.security import verify_password
 from app.database import Base, get_db
 from app.main import app
 from app.models import User
-
-
-@pytest.fixture(autouse=True)
-def _jwt_secret():
-    original = settings.jwt_secret
-    object.__setattr__(settings, "jwt_secret", "test-signing-secret-0123456789abcdef")
-    yield
-    object.__setattr__(settings, "jwt_secret", original)
 
 
 @pytest.fixture(autouse=True)
