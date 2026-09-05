@@ -1,0 +1,7 @@
+fastapi>=0.133,<0.134
+uvicorn[standard]>=0.34,<0.35
+SQLAlchemy>=2.0.36,<2.1
+pydantic[email]>=2.10,<2.11
+passlib[bcrypt]>=1.7.4,<1.8
+bcrypt>=4.0.1,<4.1
+PyJWT>=2.13,<2.14
