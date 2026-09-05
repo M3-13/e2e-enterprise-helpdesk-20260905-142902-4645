@@ -360,6 +360,20 @@ def test_closed_ticket_not_overdue(client, db_session):
     assert item["is_overdue"] is False
 
 
+def test_resolved_ticket_is_overdue(client, db_session):
+    user = _create_user(db_session, "agent@example.com", role=Role.agent)
+    ticket_id = _create_ticket(client, user.id, title="resolved").json()["id"]
+
+    db_session.query(Ticket).filter(Ticket.id == ticket_id).update(
+        {Ticket.due_at: utcnow() - timedelta(hours=1), Ticket.status: Status.resolved}
+    )
+    db_session.commit()
+
+    resp = client.get("/api/tickets", headers=_auth(user.id))
+    item = next(t for t in resp.json()["items"] if t["id"] == ticket_id)
+    assert item["is_overdue"] is True
+
+
 def test_list_requires_auth(client):
     resp = client.get("/api/tickets")
     assert resp.status_code == 401
