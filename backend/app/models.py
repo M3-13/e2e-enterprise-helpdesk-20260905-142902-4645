@@ -95,7 +95,7 @@ class Ticket(Base):
 
     @property
     def is_overdue(self) -> bool:
-        if self.status in (Status.resolved, Status.closed):
+        if self.status == Status.closed:
             return False
         if self.due_at is None:
             return False
