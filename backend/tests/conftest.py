@@ -1,20 +1,20 @@
 """Shared pytest fixtures for the backend test suite."""
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import settings
-from app.main import app
-
-
-@pytest.fixture(scope="session", autouse=True)
-def jwt_secret():
-    original = settings.jwt_secret
-    object.__setattr__(settings, "jwt_secret", "test-secret-key-with-at-least-32-bytes")
-    yield
-    object.__setattr__(settings, "jwt_secret", original)
+# Set the signing secret BEFORE any ``app.*`` module is imported anywhere in this
+# test session. ``app.config._build_settings()`` reads ``JWT_SECRET`` from the
+# environment at import time, so this mirrors the production path (RUN.json,
+# class "generate") and keeps ``settings.jwt_secret`` non-empty for every test.
+# ``setdefault`` never overrides a value the runner already injected.
+os.environ.setdefault("JWT_SECRET", "test-secret-key-with-at-least-32-bytes")
 
 
 @pytest.fixture()
 def client():
+    from app.main import app
+
     return TestClient(app)
