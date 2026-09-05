@@ -5,13 +5,26 @@ import {
   canCloseTicket,
   canEditTicket,
   canReopenTicket,
+  selectAssignableAgents,
 } from "./TicketDetailPage";
+import type { UserOut } from "../api/client";
 import {
   CATEGORIES,
   CATEGORY_LABELS,
   PRIORITIES,
   PRIORITY_LABELS,
 } from "../components/TicketForm";
+
+function makeUser(overrides: Partial<UserOut> = {}): UserOut {
+  return {
+    id: 1,
+    email: "a@b.c",
+    display_name: "Agent",
+    role: "agent",
+    is_active: true,
+    ...overrides,
+  };
+}
 
 describe("Ticket-Detail Berechtigungen", () => {
   it("Agent und Admin dürfen bearbeiten", () => {
@@ -63,5 +76,27 @@ describe("Ticket-Detail Berechtigungen", () => {
     for (const p of PRIORITIES) {
       expect(PRIORITY_LABELS[p]).toBeTruthy();
     }
+  });
+});
+
+describe("selectAssignableAgents", () => {
+  it("filtert auf aktive Agenten und Admins", () => {
+    const users = [
+      makeUser({ id: 1, role: "agent", is_active: true }),
+      makeUser({ id: 2, role: "admin", is_active: true }),
+      makeUser({ id: 3, role: "melder", is_active: true }),
+      makeUser({ id: 4, role: "agent", is_active: false }),
+    ];
+    expect(selectAssignableAgents(users, null).map((u) => u.id)).toEqual([1, 2]);
+  });
+
+  it("fällt ohne Liste auf den aktuellen Agenten/Admin zurück", () => {
+    expect(selectAssignableAgents(null, makeUser({ role: "agent" })).map((u) => u.id)).toEqual([1]);
+    expect(selectAssignableAgents(null, makeUser({ role: "admin" })).map((u) => u.id)).toEqual([1]);
+  });
+
+  it("liefert leer für Melder oder ohne aktuellen Benutzer", () => {
+    expect(selectAssignableAgents(null, makeUser({ role: "melder" }))).toEqual([]);
+    expect(selectAssignableAgents(null, null)).toEqual([]);
   });
 });

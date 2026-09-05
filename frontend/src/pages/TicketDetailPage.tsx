@@ -55,6 +55,19 @@ export function canAssignTicket(role: Role | null): boolean {
   return role === "agent" || role === "admin";
 }
 
+export function selectAssignableAgents(
+  users: UserOut[] | null,
+  currentUser: UserOut | null,
+): UserOut[] {
+  if (users) {
+    return users.filter((u) => u.is_active && (u.role === "agent" || u.role === "admin"));
+  }
+  if (currentUser && (currentUser.role === "agent" || currentUser.role === "admin")) {
+    return [currentUser];
+  }
+  return [];
+}
+
 function formatDateTime(value: string): string {
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? value : d.toLocaleString("de-DE");
@@ -102,13 +115,9 @@ export default function TicketDetailPage() {
     if (role !== "agent" && role !== "admin") return;
     try {
       const users = await api.listUsers();
-      setAgents(
-        users.filter((u) => u.is_active && (u.role === "agent" || u.role === "admin")),
-      );
+      setAgents(selectAssignableAgents(users, user));
     } catch {
-      if (user && (user.role === "agent" || user.role === "admin")) {
-        setAgents([user]);
-      }
+      setAgents(selectAssignableAgents(null, user));
     }
   }, [role, user]);
 
@@ -343,7 +352,7 @@ export default function TicketDetailPage() {
           align-items: center;
           gap: var(--space-1);
         }
-        .badge--open { color: var(--color-info); border-color: var(--color-info); }
+        .badge--open { color: var(--color-accent); border-color: var(--color-accent); }
         .badge--in_progress { color: var(--color-warning); border-color: var(--color-warning); }
         .badge--resolved { color: var(--color-success); border-color: var(--color-success); }
         .badge--closed { color: var(--color-muted); border-color: var(--color-muted); }
