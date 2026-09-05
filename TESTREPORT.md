@@ -1,18 +1,14 @@
 VERDICT: BUGS_FOUND
 
-**Bug-Liste**
-
-- **Titel:** Backend-Testsuite schlägt fehl: JWT_SECRET in `test_tickets.py` nicht gesetzt  
-- **Symptom:** 18 von 91 Backend-Tests brechen beim Erzeugen eines Access-Tokens mit `RuntimeError: JWT_SECRET is not configured` ab. Die komplette Python-Testsuite ist dadurch rot (pytest exit 1), obwohl das Backend selbst startet und `/api/health` mit HTTP 200 antwortet.  
-- **Repro:** `pytest` im Verzeichnis `backend/` ausführen. Jeder Test in `backend/tests/test_tickets.py`, der `_auth(user.id)` aufruft, wirft den Fehler.  
-- **Evidence:**  
-  ```
-  FAILED tests/test_tickets.py::test_create_ticket_returns_201_open_with_due_at - RuntimeError: JWT_SECRET is not configured. Set it via RUN.json (class 'generate') or the environment before issuing tokens.
-  FAILED tests/test_tickets.py::test_create_ticket_sets_creator - RuntimeError: JWT_SECRET is not configured. Set it via RUN.json (class 'generate') or the environment before issuing tokens.
-  ...
-  ================== 18 failed, 73 passed, 1 warning in 13.32s ==================
-  ```
-- **Suspected file(s):** `backend/tests/test_tickets.py` — die dortigen Fixtures erstellen zwar eine eigene Test-Datenbank, setzen aber im Gegensatz zu `backend/tests/conftest.py` oder anderen Testmodulen kein Test-JWT-Secret. Dadurch ruft `create_access_token()` die produktive `_secret()`-Logik auf und scheitert an der leeren `settings.jwt_secret`.  
+- **Title:** Backend-Testlauf schlägt fehl — JWT_SECRET in test_tickets.py nicht konfiguriert
+- **Symptom:** 18 Tests in `backend/tests/test_tickets.py` brechen beim Erzeugen eines JWT mit `RuntimeError` ab; der Pytest-Lauf ist rot. Die Anwendung selbst startet laut Backend-Smoke gesund, aber die Test-Suite als Teil des Produkts/CI ist nicht grün.
+- **Repro:** Pytest-Gesamtlauf über das Backend ausführen, z. B. `pytest backend/tests/test_tickets.py`. Jeder Test, der `create_access_token` aufruft (Ticket erstellen, Suche, Filter, Sortierung, Pagination, Überfällig-Kennzeichnung usw.), schlägt fehl.
+- **Evidence:**
+  - `RuntimeError: JWT_SECRET is not configured. Set it via RUN.json (class 'generate') or the environment before issuing tokens.`
+  - `FAILED tests/test_tickets.py::test_create_ticket_returns_201_open_with_due_at - RuntimeError: JWT_SECRET is not configured. Set it via RUN.json (class 'generate') or the environment before issuing tokens.`
+  - `FAILED tests/test_tickets.py::test_invalid_category_422 - RuntimeError: JWT_SECRET is not configured…`
+  - `================== 18 failed, 73 passed, 1 warning in 13.36s ==================`
+- **Suspected file(s):** `backend/tests/conftest.py` setzt `JWT_SECRET` per `os.environ.setdefault(…)`; greift aber nicht, wenn die Umgebungsvariable bereits als leerer String vorhanden ist. `backend/tests/test_tickets.py` verlässt sich auf dieses Setup, ohne selbst ein Secret zu setzen oder `_secret` zu patchen, und ruft direkt `create_access_token` auf.
 - **Severity:** high
 
-Hinweis zur Einordnung: Der gescheiterte Browser-Smoke (`playwright install chromium` Download-Timeout, `Executable doesn't exist`) sowie das daraus resultierende `[skipped] behavioral E2E` sind Umgebungs-/Harness-Probleme (fehlender Browser-Download) und werden daher nicht als Produktfehler gewertet. Der Backend-Prozess selbst startet aus `RUN.json` erfolgreich und beantwortet `/api/health` mit 200. Der einzige beobachtete Produkt-/Repository-Mangel ist die rot schaltende Backend-Testsuite.
+Hinweis: Der Fehler beim Playwright-Browser-Download sowie der daraus folgende Smoke-/E2E-Abbruch ist ein Umgebungs-/Netzwerkproblem des Testrunners (Browser-Download-Timeout, fehlendes Browser-Executable) und wird nicht als Produktfehler gewertet.
