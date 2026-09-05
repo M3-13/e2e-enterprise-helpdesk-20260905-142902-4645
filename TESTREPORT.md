@@ -1,36 +1,25 @@
 VERDICT: BUGS_FOUND
 
-**Titel:** Backend-Testsuite schlägt fehl – JWT_SECRET in `tests/test_tickets.py` nicht konfiguriert
-
-**Symptom:**  
-Die pytest-Testsuite bricht mit 18 Fehlern ab, alle in `backend/tests/test_tickets.py`. Jeder Versuch, ein Ticket zu erstellen, zu suchen, zu filtern oder zu paginieren, schlägt bereits bei der Erzeugung des Autorisierungs-Headers fehl, weil der JWT-Signaturschlüssel leer ist. Dadurch ist die CI-Pipeline rot und die Ticket-Funktionalität (AC-04 bis AC-09, AC-12) nicht durch automatisierte Tests abgesichert. Das Produkt selbst startet laut Backend-Smoke zwar korrekt, aber die Qualitätssicherung ist blockiert.
-
-**Repro:**  
-`pytest backend/tests/test_tickets.py` (oder `pytest` im Verzeichnis `backend`) ausführen. Die Fehler treten in 18 Tests auf, z. B. `test_create_ticket_returns_201_open_with_due_at`, `test_search_matches_title_and_description`, `test_pagination`.
-
-**Evidence:**
-```
-E           RuntimeError: JWT_SECRET is not configured. Set it via RUN.json (class 'generate') or the environment before issuing tokens.
-app\core\security.py:29: RuntimeError
-```
-Aus dem Stacktrace:
-```
-tests\test_tickets.py:73: in _auth
-    return {"Authorization": f"Bearer {create_access_token(str(user_id))}"}
-app\core\security.py:46: in create_access_token
-    return jwt.encode(payload, _secret(), algorithm=ALGORITHM)
-```
-
-**Suspected file(s):**  
-- `backend/tests/test_tickets.py` – hier fehlt ein eigener Mechanismus (z. B. `monkeypatch` auf `app.core.security._secret` oder direktes Setzen von `settings.jwt_secret`), wie ihn andere Testdateien (`test_dashboard.py`, `test_ticket_detail.py`, `test_export.py`, `test_users.py`) bereits verwenden.  
-- `backend/tests/conftest.py` – das globale `os.environ["JWT_SECRET"] = ...` greift offenbar nicht rechtzeitig vor dem Import von `app.core.security` in diesem Testmodul, sodass `settings.jwt_secret` leer bleibt.
-
-**Severity:** high
+**Testergebnis:** Die Python-Testsuite läuft rot (`exit 1`): 90 Tests bestanden, 1 Test fehlgeschlagen. Backend-Smoke und Frontend-Build sind erfolgreich. Der Browser-Smoke konnte wegen eines Download-Timeouts des Playwright-Browsers nicht ausgeführt werden – das ist ein Umgebungsproblem, kein Produktfehler.
 
 ---
 
-Hinweise zu den weiteren Abschnitten des Berichts:
+### Bug-Liste
 
-- **`playwright install chromium` (exit 1)** und der darauf folgende **`playwright smoke` (exit 1)** sind auf einen Browser-Download-Timeout zurückzuführen (`Executable doesn't exist …`). Das ist ein Fehler der Testumgebung, nicht des Produkts; der Frontend-Build selbst war erfolgreich.  
-- **`behavioral E2E`** ist explizit mit `[skipped]` markiert; diese Überspringung ist kein Produktfehler.  
-- **Backend-Smoke** aus `RUN.json` war erfolgreich – das Produkt startet und `/api/health` antwortet mit HTTP 200. Der gemeldete Bug betrifft ausschließlich die Testkonfiguration, nicht den laufenden Server.
+- **Titel:** Security-Test `test_create_access_token_requires_a_secret` schlägt fehl – erwarteter `RuntimeError` wird nicht ausgelöst
+- **Symptom:** Die Test-Suite bricht mit `exit 1` ab. Der Test soll sicherstellen, dass `create_access_token` bei leerem JWT-Secret einen `RuntimeError` wirft (Absicherung von AC-18: kein Token ohne konfigurierten Signaturschlüssel). Tatsächlich wird keine Exception ausgelöst, weil das autouse Fixture `jwt_secret` in `backend/tests/conftest.py` die Funktion `app.core.security._secret` global durch einen Lambda ersetzt, der immer einen Test-Secret zurückgibt. Dadurch wird der eigentliche Sicherheitspfad nie geprüft und der Test schlägt fehl.
+- **Repro:** `pytest backend/tests/test_security.py::test_create_access_token_requires_a_secret` (oder gesamte Suite). Der Test setzt `settings.jwt_secret = ""` und erwartet `pytest.raises(RuntimeError)`, bekommt aber keinen Fehler.
+- **Evidence:**
+  ```
+  tests/test_security.py::test_create_access_token_requires_a_secret FAILED [ 48%]
+  ...
+  E       Failed: DID NOT RAISE RuntimeError
+  tests\test_security.py:119: Failed
+  ================== 1 failed, 90 passed, 1 warning in 13.68s ===================
+  ```
+- **Suspected files:** `backend/tests/conftest.py` (autouse Fixture `jwt_secret` überschreibt `app.core.security._secret`) und `backend/tests/test_security.py` (Test isoliert nicht gegen diesen Patch).
+- **Severity:** medium
+
+---
+
+*Hinweis:* Der fehlgeschlagene Browser-Download (`playwright install chromium`, Timeout) und der daraus resultierende Smoke-Abbruch sind reine Umgebungsprobleme (fehlende Host-Werkzeuge/Netzwerk-Timeouts) und werden nicht als Produktfehler gewertet. Der Abschnitt `behavioral E2E` ist als `[skipped]` markiert und liefert daher keine Produktbewertung.
