@@ -16,6 +16,7 @@ import TicketForm, {
   CATEGORY_LABELS,
   PRIORITY_LABELS,
 } from "../components/TicketForm";
+import { formatDateTime } from "../lib/format";
 
 export const STATUS_LABELS: Record<TicketStatus, string> = {
   open: "Offen",
@@ -66,11 +67,6 @@ export function selectAssignableAgents(
     return [currentUser];
   }
   return [];
-}
-
-function formatDateTime(value: string): string {
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? value : d.toLocaleString("de-DE");
 }
 
 export default function TicketDetailPage() {
@@ -358,8 +354,9 @@ export default function TicketDetailPage() {
         .badge--closed { color: var(--color-muted); border-color: var(--color-muted); }
         .badge--overdue {
           color: var(--color-danger);
-          border-color: var(--color-danger);
+          border-color: var(--color-overdue_border);
           background-color: var(--color-overdue_bg);
+          font-weight: 700;
         }
         .ticket-meta {
           display: grid;

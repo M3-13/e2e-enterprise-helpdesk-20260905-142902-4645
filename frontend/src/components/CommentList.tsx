@@ -1,10 +1,6 @@
 import { useState, type FormEvent } from "react";
 import type { CommentOut } from "../api/client";
-
-function formatDateTime(value: string): string {
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? value : d.toLocaleString("de-DE");
-}
+import { formatDateTime } from "../lib/format";
 
 interface CommentListProps {
   comments: CommentOut[];

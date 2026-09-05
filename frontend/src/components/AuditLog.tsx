@@ -1,4 +1,5 @@
 import type { AuditOut } from "../api/client";
+import { formatDateTime } from "../lib/format";
 
 const FIELD_LABELS: Record<string, string> = {
   title: "Titel",
@@ -8,11 +9,6 @@ const FIELD_LABELS: Record<string, string> = {
   status: "Status",
   assignee_id: "Zuständigkeit",
 };
-
-function formatDateTime(value: string): string {
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? value : d.toLocaleString("de-DE");
-}
 
 interface AuditLogProps {
   audit: AuditOut[];
