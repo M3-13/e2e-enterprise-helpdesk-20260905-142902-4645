@@ -1,0 +1,18 @@
+{
+  "runcontract": 1,
+  "services": [
+    {
+      "name": "frontend",
+      "dir": "frontend",
+      "stack": "web-vite",
+      "kind": "server",
+      "install": [["npm", "install"]],
+      "start": ["npm", "run", "dev", "--", "--port", "${PORT}"],
+      "port": 5173,
+      "health": { "path": "/", "expect_status": [200] },
+      "env": {
+        "VITE_API_BASE_URL": { "dev": "http://localhost:8000" }
+      }
+    }
+  ]
+}
